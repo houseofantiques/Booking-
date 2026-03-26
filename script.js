@@ -1,49 +1,47 @@
 /**************************************************************
- * HOA Booking Form - script.js (FROM SCRATCH)
- * - EmailJS send to admin
- * - Open WhatsApp at customer after successful email
- * - Dynamic fields: Occasion + Group (4+) + Kids
- * - Preview summary
+ * HOA Booking Form - script.js
+ * Rebuilt with payment logic for Visit/Tour only.
  **************************************************************/
 
-// =============================
-// CONFIG
-// =============================
-const WHATSAPP_NUMBER = "9647737079079"; // رقم واتساب الاستلام (تجربة/بيت التحفيات)
+const WHATSAPP_NUMBER = "9647737079079";
 
 const EMAILJS_PUBLIC_KEY  = "tivoinl7MHIKAOORE";
 const EMAILJS_SERVICE_ID  = "service_bm4mbb9";
 const EMAILJS_TEMPLATE_ID = "template_ht88c8b";
 
 const ADMIN_RECEIVER_EMAIL = "houseofantique30@gmail.com";
+const MASTERCARD_NUMBER = "7146148577";
+const PAYMENT_PRICES = {
+  "زيارة": 10,
+  "جولة": 15,
+};
 
-// =============================
-// INIT EmailJS
-// =============================
 (function initEmailJS(){
   if (window.emailjs) {
     emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
   }
 })();
 
-// =============================
-// HELPERS
-// =============================
 const $ = (s) => document.querySelector(s);
 
 function toast(msg){
   const t = $("#toast");
-  if(!t){ alert(msg); return; }
+  if(!t){ 
+    alert(msg); 
+    return; 
+  }
   t.textContent = msg;
   t.classList.add("show");
-  setTimeout(()=>t.classList.remove("show"), 2600);
+  setTimeout(() => t.classList.remove("show"), 2600);
 }
 
-function pad2(n){ return String(n).padStart(2,"0"); }
+function pad2(n){ 
+  return String(n).padStart(2, "0"); 
+}
 
 function humanDate(iso){
   if(!iso) return "—";
-  const [y,m,d] = iso.split("-");
+  const [y, m, d] = iso.split("-");
   return `${pad2(d)}/${pad2(m)}/${y}`;
 }
 
@@ -60,40 +58,59 @@ function timeToArabicLabel(t){
 function makeBookingId(){
   const now = new Date();
   const y = now.getFullYear();
-  const m = pad2(now.getMonth()+1);
+  const m = pad2(now.getMonth() + 1);
   const d = pad2(now.getDate());
-  const r = Math.random().toString(36).slice(2,6).toUpperCase();
+  const r = Math.random().toString(36).slice(2, 6).toUpperCase();
   return `HOA-${y}${m}${d}-${r}`;
 }
 
 function escapeHtml(str){
   return String(str ?? "")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-// فرق الساعات إذا النهاية لليوم الثاني
 function calcDurationHours(start, end){
   if(!start || !end) return "";
   const [sh, sm] = start.split(":").map(Number);
   const [eh, em] = end.split(":").map(Number);
-  if([sh,sm,eh,em].some(Number.isNaN)) return "";
-  let s = sh*60 + sm;
-  let e = eh*60 + em;
-  if(e < s) e += 24*60;
+  if([sh, sm, eh, em].some(Number.isNaN)) return "";
+  let s = sh * 60 + sm;
+  let e = eh * 60 + em;
+  if(e < s) e += 24 * 60;
   const diff = (e - s) / 60;
-  return diff.toFixed(1).replace(".0","");
+  return diff.toFixed(1).replace(".0", "");
 }
 
-function show(el){ if(el) el.style.display = "block"; }
-function hide(el){ if(el) el.style.display = "none"; }
+function show(el){ 
+  if(el) el.style.display = "block"; 
+}
 
-// =============================
-// UI RULES
-// =============================
+function hide(el){ 
+  if(el) el.style.display = "none"; 
+}
+
+function isPaymentEvent(type){ 
+  return type === "زيارة" || type === "جولة"; 
+}
+
+function getPaymentMeta(eventType, peopleCount){
+  const count = Math.max(Number(peopleCount || 0), 0);
+  const perPerson = PAYMENT_PRICES[eventType] || 0;
+  const total = perPerson * count;
+
+  return {
+    enabled: isPaymentEvent(eventType),
+    perPerson,
+    total,
+    label: perPerson ? `$${perPerson} / person` : "—",
+    totalLabel: total ? `$${total}` : "—",
+  };
+}
+
 function syncOccasionRules(){
   const v = $("#eventType")?.value;
   const wrap = $("#occasionFields");
@@ -101,23 +118,23 @@ function syncOccasionRules(){
 
   if(v === "occasion"){
     show(wrap);
-    $("#occasionType").required = true;
-    $("#decorProvider").required = true;
-    $("#foodProvider").required = true;
-    $("#hasBand").required = true;
-  }else{
+
+    if($("#occasionType")) $("#occasionType").required = true;
+    if($("#decorProvider")) $("#decorProvider").required = true;
+    if($("#foodProvider")) $("#foodProvider").required = true;
+    if($("#hasBand")) $("#hasBand").required = true;
+  } else {
     hide(wrap);
 
-    // remove required
-    $("#occasionType").required = false;
-    $("#decorProvider").required = false;
-    $("#foodProvider").required = false;
-    $("#hasBand").required = false;
+    if($("#occasionType")) $("#occasionType").required = false;
+    if($("#decorProvider")) $("#decorProvider").required = false;
+    if($("#foodProvider")) $("#foodProvider").required = false;
+    if($("#hasBand")) $("#hasBand").required = false;
 
-    // reset values
     if($("#occasionType")) $("#occasionType").value = "";
     if($("#occasionOther")) $("#occasionOther").value = "";
     hide($("#occasionOtherWrap"));
+
     if($("#decorProvider")) $("#decorProvider").value = "";
     if($("#foodProvider")) $("#foodProvider").value = "";
     if($("#endTime")) $("#endTime").value = "";
@@ -135,7 +152,7 @@ function syncOccasionOther(){
 
   if(v === "أخرى"){
     show(wrap);
-  }else{
+  } else {
     hide(wrap);
     if($("#occasionOther")) $("#occasionOther").value = "";
   }
@@ -148,7 +165,7 @@ function syncBandDetails(){
 
   if(v === "yes"){
     show(wrap);
-  }else{
+  } else {
     hide(wrap);
     if($("#bandDetails")) $("#bandDetails").value = "";
   }
@@ -161,15 +178,16 @@ function syncPeopleRules(){
 
   if(n >= 4){
     show(group);
-    $("#groupType").required = true;
-    $("#isForeign").required = true;
-    $("#interests").required = true;
-  }else{
+
+    if($("#groupType")) $("#groupType").required = true;
+    if($("#isForeign")) $("#isForeign").required = true;
+    if($("#interests")) $("#interests").required = true;
+  } else {
     hide(group);
 
-    $("#groupType").required = false;
-    $("#isForeign").required = false;
-    $("#interests").required = false;
+    if($("#groupType")) $("#groupType").required = false;
+    if($("#isForeign")) $("#isForeign").required = false;
+    if($("#interests")) $("#interests").required = false;
 
     if($("#groupType")) $("#groupType").value = "";
     if($("#isForeign")) $("#isForeign").value = "";
@@ -179,10 +197,12 @@ function syncPeopleRules(){
 
     hide($("#countryWrap"));
     hide($("#provinceWrap"));
+
     if($("#country")) $("#country").required = false;
     if($("#province")) $("#province").required = false;
   }
 
+  syncPaymentUI();
   validateExtraLogic();
 }
 
@@ -195,20 +215,23 @@ function validateExtraLogic(){
   if(isForeign === "yes"){
     show($("#countryWrap"));
     hide($("#provinceWrap"));
-    $("#country").required = true;
-    $("#province").required = false;
+
+    if($("#country")) $("#country").required = true;
+    if($("#province")) $("#province").required = false;
     if($("#province")) $("#province").value = "";
-  }else if(isForeign === "no"){
+  } else if(isForeign === "no"){
     show($("#provinceWrap"));
     hide($("#countryWrap"));
-    $("#province").required = true;
-    $("#country").required = false;
+
+    if($("#province")) $("#province").required = true;
+    if($("#country")) $("#country").required = false;
     if($("#country")) $("#country").value = "";
-  }else{
+  } else {
     hide($("#countryWrap"));
     hide($("#provinceWrap"));
-    $("#country").required = false;
-    $("#province").required = false;
+
+    if($("#country")) $("#country").required = false;
+    if($("#province")) $("#province").required = false;
   }
 }
 
@@ -219,9 +242,9 @@ function syncKidsRules(){
   if(!row || !age) return;
 
   if(v === "yes"){
-    row.style.display = "grid"; // مهم حتى يضبط القياس داخل grid
+    row.style.display = "grid";
     age.required = true;
-  }else{
+  } else {
     row.style.display = "none";
     age.required = false;
     age.value = "";
@@ -236,17 +259,54 @@ function syncTimeHints(){
   if(endHint) endHint.textContent = timeToArabicLabel($("#endTime")?.value);
 }
 
-// =============================
-// DATA
-// =============================
+function syncPaymentUI(){
+  const eventType = $("#eventType")?.value || "";
+  const peopleCount = $("#peopleCount")?.value || "0";
+
+  const paymentSection = $("#paymentSection");
+  const paymentMethod = $("#paymentMethod");
+  const paymentRef = $("#paymentRef");
+  const paymentNotice = $("#paymentNotice");
+  const pricePerPerson = $("#pricePerPerson");
+  const paymentTotal = $("#paymentTotal");
+  const badge = $("#paymentTypeBadge");
+
+  const meta = getPaymentMeta(eventType, peopleCount);
+
+  if(meta.enabled){
+    show(paymentSection);
+
+    if(paymentMethod) paymentMethod.required = true;
+    if(pricePerPerson) pricePerPerson.textContent = meta.label;
+    if(paymentTotal) paymentTotal.textContent = meta.totalLabel;
+    if(badge) badge.textContent = eventType;
+  } else {
+    hide(paymentSection);
+
+    if(paymentMethod){
+      paymentMethod.required = false;
+      paymentMethod.value = "";
+    }
+
+    if(paymentRef) paymentRef.value = "";
+    if(paymentNotice) paymentNotice.value = "";
+    if(pricePerPerson) pricePerPerson.textContent = "—";
+    if(paymentTotal) paymentTotal.textContent = "—";
+    if(badge) badge.textContent = "—";
+  }
+}
+
 function getData(){
+  const eventType = $("#eventType").value;
+  const peopleCount = $("#peopleCount").value;
+  const paymentMeta = getPaymentMeta(eventType, peopleCount);
+
   return {
-    eventType: $("#eventType").value,
-    peopleCount: $("#peopleCount").value,
+    eventType,
+    peopleCount,
     date: $("#date").value,
     time: $("#time").value,
 
-    // occasion
     occasionType: $("#occasionType")?.value || "",
     occasionOther: $("#occasionOther")?.value?.trim() || "",
     decorProvider: $("#decorProvider")?.value || "",
@@ -256,23 +316,28 @@ function getData(){
     hasBand: $("#hasBand")?.value || "",
     bandDetails: $("#bandDetails")?.value?.trim() || "",
 
-    // customer
     fullName: $("#fullName").value.trim(),
     birthdate: $("#birthdate").value,
     phone: $("#phone").value.trim(),
     email: $("#email").value.trim(),
     notes: $("#notes")?.value?.trim() || "",
 
-    // kids
     hasKids: $("#hasKids").value,
     youngestKidAge: $("#youngestKidAge")?.value || "",
 
-    // group
     groupType: $("#groupType")?.value || "",
     isForeign: $("#isForeign")?.value || "",
     country: $("#country")?.value?.trim() || "",
     province: $("#province")?.value?.trim() || "",
     interests: $("#interests")?.value?.trim() || "",
+
+    paymentEnabled: paymentMeta.enabled,
+    paymentMethod: $("#paymentMethod")?.value || "",
+    paymentRef: $("#paymentRef")?.value?.trim() || "",
+    paymentNotice: $("#paymentNotice")?.value?.trim() || "",
+    pricePerPerson: paymentMeta.perPerson,
+    paymentTotal: paymentMeta.total,
+    mastercardNumber: MASTERCARD_NUMBER,
   };
 }
 
@@ -287,12 +352,10 @@ function firstInvalidField(form){
   return null;
 }
 
-// =============================
-// SUMMARY
-// =============================
 function kv(k, v){
   return `<div class="kv-row"><span>${k}</span><b>${v}</b></div>`;
 }
+
 function dividerRow(){
   return `<div class="kv-divider"></div>`;
 }
@@ -301,7 +364,6 @@ function renderSummary(data, bookingId){
   const isOccasion = data.eventType === "occasion";
   const isGroup = Number(data.peopleCount || 0) >= 4;
   const eventLabel = isOccasion ? "إقامة مناسبة (Private Occasion)" : data.eventType;
-
   const rows = [];
 
   rows.push(kv("رقم الحجز / Booking ID", `<span dir="ltr">${escapeHtml(bookingId)}</span>`));
@@ -309,6 +371,17 @@ function renderSummary(data, bookingId){
   rows.push(kv("التاريخ / Date", escapeHtml(humanDate(data.date))));
   rows.push(kv("وقت البداية / Start", `${escapeHtml(data.time)} — ${escapeHtml(timeToArabicLabel(data.time))}`));
   rows.push(kv("عدد الأشخاص / Guests", escapeHtml(data.peopleCount)));
+
+  if(data.paymentEnabled){
+    rows.push(dividerRow());
+    rows.push(kv("الدفع / Payment", "مطلوب قبل تثبيت الحجز / Required before confirmation"));
+    rows.push(kv("سعر الشخص / Per Person", `$${escapeHtml(data.pricePerPerson)}`));
+    rows.push(kv("المبلغ الكلي / Total", `$${escapeHtml(data.paymentTotal)}`));
+    rows.push(kv("رقم بطاقة التحويل / Transfer Card", `<span dir="ltr">${escapeHtml(data.mastercardNumber)}</span>`));
+    rows.push(kv("طريقة الدفع / Method", escapeHtml(data.paymentMethod || "—")));
+    rows.push(kv("مرجع الدفع / Payment Ref", escapeHtml(data.paymentRef || "—")));
+    rows.push(kv("ملاحظة الدفع / Payment Note", escapeHtml(data.paymentNotice || "—")));
+  }
 
   if(isOccasion){
     const occ = (data.occasionType === "أخرى" && data.occasionOther)
@@ -356,21 +429,15 @@ function renderSummary(data, bookingId){
   if(box) box.innerHTML = `<div class="kv">${rows.join("")}</div>`;
 }
 
-// =============================
-// EMAIL TEMPLATE (HTML content)
-// =============================
 function buildEmailHtml(data, bookingId){
   const isOccasion = data.eventType === "occasion";
   const isGroup = Number(data.peopleCount || 0) >= 4;
   const eventLabel = isOccasion ? "Private Occasion / إقامة مناسبة" : data.eventType;
-
   const computed = calcDurationHours(data.time, data.endTime);
   const durationFinal = isOccasion ? (data.durationHours || computed || "—") : "—";
-
   const occ = (data.occasionType === "أخرى" && data.occasionOther)
     ? `${data.occasionType} — ${data.occasionOther}`
     : (data.occasionType || "—");
-
   const createdAt = new Date().toLocaleString("ar-IQ");
 
   const tr = (k, v) => `
@@ -395,6 +462,20 @@ function buildEmailHtml(data, bookingId){
   rows += tr("عدد الأشخاص / Guests", escapeHtml(data.peopleCount));
   rows += tr("التاريخ / Date", escapeHtml(humanDate(data.date)));
   rows += tr("وقت البداية / Start", `${escapeHtml(data.time)} — ${escapeHtml(timeToArabicLabel(data.time))}`);
+
+  if(data.paymentEnabled){
+    rows += sep();
+    rows += tr("الدفع مطلوب؟", "نعم — زيارة أو جولة");
+    rows += tr("سعر الشخص", `$${escapeHtml(data.pricePerPerson)}`);
+    rows += tr("المبلغ الكلي", `$${escapeHtml(data.paymentTotal)}`);
+    rows += tr("رقم بطاقة التحويل", `<span dir="ltr">${escapeHtml(data.mastercardNumber)}</span>`);
+    rows += tr("طريقة الدفع", escapeHtml(data.paymentMethod || "—"));
+    rows += tr("مرجع الدفع", escapeHtml(data.paymentRef || "—"));
+    rows += tr("ملاحظة الدفع", escapeHtml(data.paymentNotice || "—"));
+  } else {
+    rows += sep();
+    rows += tr("الدفع الإلكتروني", "لا يظهر — يتم الاتفاق أولاً عبر التواصل");
+  }
 
   if(isOccasion){
     rows += sep();
@@ -443,16 +524,11 @@ function buildEmailHtml(data, bookingId){
   `;
 }
 
-// =============================
-// WHATSAPP (opens for customer)
-// =============================
 function buildWhatsAppText(data, bookingId){
   const isOccasion = data.eventType === "occasion";
   const eventLabel = isOccasion ? "إقامة مناسبة" : data.eventType;
-
   const durationAuto = calcDurationHours(data.time, data.endTime);
   const durationFinal = isOccasion ? (data.durationHours || durationAuto || "—") : "—";
-
   const occ = (data.occasionType === "أخرى" && data.occasionOther)
     ? `${data.occasionType} - ${data.occasionOther}`
     : (data.occasionType || "—");
@@ -465,6 +541,10 @@ function buildWhatsAppText(data, bookingId){
     `عدد الأشخاص: ${data.peopleCount}`,
     `التاريخ: ${humanDate(data.date)}`,
     `وقت البداية: ${data.time} (${timeToArabicLabel(data.time)})`,
+    data.paymentEnabled ? `الدفع المطلوب: $${data.paymentTotal}` : null,
+    data.paymentEnabled ? `سعر الشخص: $${data.pricePerPerson}` : null,
+    data.paymentEnabled ? `رقم بطاقة التحويل: ${data.mastercardNumber}` : null,
+    data.paymentEnabled ? `مرجع الدفع: ${data.paymentRef || "—"}` : null,
     isOccasion ? `وقت النهاية: ${data.endTime || "—"} ${data.endTime ? `(${timeToArabicLabel(data.endTime)})` : ""}` : null,
     isOccasion ? `مدة الحجز (ساعات): ${durationFinal}` : null,
     "—",
@@ -492,19 +572,19 @@ function openWhatsApp(data, bookingId){
   window.open(url, "_blank");
 }
 
-// =============================
-// EVENTS
-// =============================
 let bookingId = null;
 
-$("#peopleCount")?.addEventListener("input", () => { syncPeopleRules(); });
-$("#eventType")?.addEventListener("change", () => { syncOccasionRules(); });
+$("#peopleCount")?.addEventListener("input", syncPeopleRules);
+
+$("#eventType")?.addEventListener("change", () => {
+  syncOccasionRules();
+  syncPaymentUI();
+});
 
 $("#occasionType")?.addEventListener("change", syncOccasionOther);
 $("#hasBand")?.addEventListener("change", syncBandDetails);
 $("#isForeign")?.addEventListener("change", validateExtraLogic);
 $("#hasKids")?.addEventListener("change", syncKidsRules);
-
 $("#time")?.addEventListener("input", syncTimeHints);
 $("#endTime")?.addEventListener("input", syncTimeHints);
 
@@ -516,6 +596,7 @@ $("#previewBtn")?.addEventListener("click", () => {
   validateExtraLogic();
   syncKidsRules();
   syncTimeHints();
+  syncPaymentUI();
 
   const form = $("#bookingForm");
   const bad = firstInvalidField(form);
@@ -526,6 +607,7 @@ $("#previewBtn")?.addEventListener("click", () => {
   }
 
   if(!bookingId) bookingId = makeBookingId();
+
   const data = getData();
   renderSummary(data, bookingId);
   toast("تم تحديث الملخص ✅");
@@ -541,6 +623,7 @@ $("#bookingForm")?.addEventListener("submit", async (e) => {
   validateExtraLogic();
   syncKidsRules();
   syncTimeHints();
+  syncPaymentUI();
 
   const form = $("#bookingForm");
   const bad = firstInvalidField(form);
@@ -551,6 +634,7 @@ $("#bookingForm")?.addEventListener("submit", async (e) => {
   }
 
   if(!bookingId) bookingId = makeBookingId();
+
   const data = getData();
   renderSummary(data, bookingId);
 
@@ -562,28 +646,21 @@ $("#bookingForm")?.addEventListener("submit", async (e) => {
   const submitBtn = $("#submitBtn");
   const spinner = submitBtn?.querySelector(".spinner");
   const btnText = submitBtn?.querySelector(".btn-text");
-
   const subject = `HOA Booking | ${data.eventType === "occasion" ? "Occasion" : data.eventType} | ${humanDate(data.date)} | ${data.time}`;
 
-  // IMPORTANT:
-  // استخدمي داخل EmailJS Template متغير {{message_html}} لعرض المحتوى
   const templateParams = {
     to_email: ADMIN_RECEIVER_EMAIL,
     subject,
-
     booking_id: bookingId,
     created_at: new Date().toLocaleString("ar-IQ"),
 
     event_type: data.eventType === "occasion" ? "إقامة مناسبة (Private Occasion)" : data.eventType,
     people_count: data.peopleCount,
     booking_date: humanDate(data.date),
-
     start_time: data.time,
     start_time_ar: timeToArabicLabel(data.time),
-
     end_time: data.endTime || "-",
     end_time_ar: data.endTime ? timeToArabicLabel(data.endTime) : "-",
-
     duration_hours: (data.durationHours || calcDurationHours(data.time, data.endTime) || "-"),
 
     full_name: data.fullName,
@@ -593,6 +670,14 @@ $("#bookingForm")?.addEventListener("submit", async (e) => {
 
     has_kids: data.hasKids === "yes" ? "نعم (Yes)" : "لا (No)",
     youngest_kid_age: data.hasKids === "yes" ? (data.youngestKidAge || "-") : "-",
+
+    payment_required: data.paymentEnabled ? "نعم (Yes)" : "لا (No)",
+    payment_method: data.paymentEnabled ? (data.paymentMethod || "-") : "-",
+    payment_per_person: data.paymentEnabled ? `$${data.pricePerPerson}` : "-",
+    payment_total: data.paymentEnabled ? `$${data.paymentTotal}` : "-",
+    payment_card_number: data.paymentEnabled ? data.mastercardNumber : "-",
+    payment_ref: data.paymentEnabled ? (data.paymentRef || "-") : "-",
+    payment_notice: data.paymentEnabled ? (data.paymentNotice || "-") : "-",
 
     occasion_type:
       data.eventType === "occasion"
@@ -615,18 +700,18 @@ $("#bookingForm")?.addEventListener("submit", async (e) => {
     band_details: data.eventType === "occasion" ? (data.bandDetails || "-") : "-",
 
     group_type: Number(data.peopleCount || 0) >= 4 ? (data.groupType || "-") : "-",
-    is_foreign: Number(data.peopleCount || 0) >= 4 ? (data.isForeign === "yes" ? "نعم (Yes)" : data.isForeign === "no" ? "لا (No)" : "-") : "-",
+    is_foreign: Number(data.peopleCount || 0) >= 4
+      ? (data.isForeign === "yes" ? "نعم (Yes)" : data.isForeign === "no" ? "لا (No)" : "-")
+      : "-",
     country: Number(data.peopleCount || 0) >= 4 ? (data.country || "-") : "-",
     province: Number(data.peopleCount || 0) >= 4 ? (data.province || "-") : "-",
     interests: Number(data.peopleCount || 0) >= 4 ? (data.interests || "-") : "-",
 
     notes: data.notes || "-",
-
-    // Email HTML Content
     message_html: buildEmailHtml(data, bookingId),
   };
 
-  try{
+  try {
     if(submitBtn){
       submitBtn.disabled = true;
       if(spinner) spinner.style.display = "inline-block";
@@ -638,14 +723,12 @@ $("#bookingForm")?.addEventListener("submit", async (e) => {
     toast("تم إرسال الحجز للإدارة ✅");
     if(btnText) btnText.textContent = "تم الإرسال ✅ / Sent ✅";
 
-    // ✅ Open WhatsApp for the customer AFTER successful email
     openWhatsApp(data, bookingId);
-
-  }catch(err){
+  } catch(err){
     console.error("EmailJS error:", err);
     toast("فشل الإرسال — راجعي إعدادات EmailJS / IDs.");
     if(btnText) btnText.textContent = "تأكيد وإرسال الحجز / Submit";
-  }finally{
+  } finally {
     if(submitBtn){
       submitBtn.disabled = false;
       if(spinner) spinner.style.display = "none";
@@ -653,25 +736,20 @@ $("#bookingForm")?.addEventListener("submit", async (e) => {
   }
 });
 
-// =============================
-// PRINT (Open print.html)
-// =============================
 function openPrintPage(){
   const form = document.getElementById("bookingForm");
   const bad = firstInvalidField(form);
 
-  if (bad){
+  if(bad){
     toast("يرجى إكمال الحقول المطلوبة ❗");
     bad.focus();
     return;
   }
 
-  // توليد رقم الحجز إذا غير موجود
   if(!bookingId) bookingId = makeBookingId();
 
   const data = getData();
 
-  // تمرير البيانات إلى صفحة الطباعة عبر URL
   const qs = new URLSearchParams({
     booking_id: bookingId,
     created_at: new Date().toLocaleString("ar-IQ"),
@@ -685,20 +763,19 @@ function openPrintPage(){
     customer_email: data.email,
     birthdate: humanDate(data.birthdate),
     has_kids: data.hasKids === "yes" ? "نعم" : "لا",
-    youngest_kid_age: data.hasKids === "yes" ? (data.youngestKidAge || "—") : "—"
+    youngest_kid_age: data.hasKids === "yes" ? (data.youngestKidAge || "—") : "—",
+    payment_total: data.paymentEnabled ? `$${data.paymentTotal}` : "—",
+    payment_per_person: data.paymentEnabled ? `$${data.pricePerPerson}` : "—",
+    payment_card_number: data.paymentEnabled ? data.mastercardNumber : "—",
+    payment_method: data.paymentEnabled ? (data.paymentMethod || "—") : "—",
+    payment_ref: data.paymentEnabled ? (data.paymentRef || "—") : "—",
   });
 
   window.open(`print.html?${qs.toString()}`, "_blank");
 }
 
-// =============================
-// Bind Print Button
-// =============================
 document.getElementById("printBtn")?.addEventListener("click", openPrintPage);
 
-// =============================
-// INIT on page load
-// =============================
 (function init(){
   syncPeopleRules();
   syncOccasionRules();
@@ -707,5 +784,5 @@ document.getElementById("printBtn")?.addEventListener("click", openPrintPage);
   validateExtraLogic();
   syncKidsRules();
   syncTimeHints();
+  syncPaymentUI();
 })();
-

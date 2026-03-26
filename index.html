@@ -7,10 +7,8 @@
 
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- EmailJS -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
-
 <body>
   <div class="overlay"></div>
 
@@ -31,7 +29,6 @@
       </header>
 
       <main class="layout">
-
         <section class="card">
           <div class="head">
             <h2>احجز الآن / <span class="en" dir="ltr">Book Now</span></h2>
@@ -39,8 +36,6 @@
           </div>
 
           <form id="bookingForm" class="form" autocomplete="on" novalidate>
-
-            <!-- Event Type + Guests -->
             <div class="grid two">
               <div class="field">
                 <label for="eventType">نوع الفعالية / <span class="en" dir="ltr">Event Type</span></label>
@@ -62,7 +57,6 @@
               </div>
             </div>
 
-            <!-- Date + Start Time -->
             <div class="grid two">
               <div class="field">
                 <label for="date">التاريخ / <span class="en" dir="ltr">Date</span></label>
@@ -76,7 +70,61 @@
               </div>
             </div>
 
-            <!-- Occasion Fields -->
+            <div id="paymentSection" class="payment-panel" style="display:none;">
+              <div class="divider"></div>
+
+              <div class="payment-head">
+                <div>
+                  <h3>الدفع المسبق / <span class="en" dir="ltr">Advance Payment</span></h3>
+                  <p>
+                    يظهر هذا القسم فقط للزيارة والجولة. أما المناسبات وباقي الخيارات فيتم الاتفاق عليها عبر التواصل المباشر.
+                    / <span class="en" dir="ltr">This appears only for Visit and Tour. Other options are arranged manually first.</span>
+                  </p>
+                </div>
+                <div class="payment-badge" id="paymentTypeBadge">—</div>
+              </div>
+
+              <div class="payment-card-box">
+                <div class="pay-line">
+                  <span>سعر الشخص / <span class="en" dir="ltr">Price Per Person</span></span>
+                  <strong id="pricePerPerson">—</strong>
+                </div>
+                <div class="pay-line total">
+                  <span>المبلغ المطلوب / <span class="en" dir="ltr">Required Amount</span></span>
+                  <strong id="paymentTotal">—</strong>
+                </div>
+                <div class="pay-line card-no">
+                  <span>رقم بطاقة الماستر كارد للتحويل / <span class="en" dir="ltr">Mastercard Number for Transfer</span></span>
+                  <strong dir="ltr" id="mastercardNumber">7146148577</strong>
+                </div>
+              </div>
+
+              <div class="grid two">
+                <div class="field">
+                  <label for="paymentMethod">طريقة الدفع / <span class="en" dir="ltr">Payment Method</span></label>
+                  <select id="paymentMethod" name="paymentMethod">
+                    <option value="" selected disabled>اختر (Select)</option>
+                    <option value="تحويل إلى بطاقة الماستر كارد">تحويل إلى بطاقة الماستر كارد (Mastercard Transfer)</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label for="paymentRef">رقم التحويل أو آخر 4 أرقام (اختياري) / <span class="en" dir="ltr">Transfer Ref or Last 4 Digits (Optional)</span></label>
+                  <input id="paymentRef" name="paymentRef" type="text" placeholder="مثال: TRX4587 أو 4587 | e.g. TRX4587 or 4587" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="paymentNotice">ملاحظة الدفع (اختياري) / <span class="en" dir="ltr">Payment Note (Optional)</span></label>
+                <input id="paymentNotice" name="paymentNotice" type="text" placeholder="مثال: تم التحويل من بطاقة باسمي | e.g. Sent from my own card" />
+              </div>
+
+              <div class="payment-note">
+                بعد التحويل، أدخل مرجع العملية إن وجد. بدون اختيار زيارة أو جولة، لن يظهر قسم الدفع أصلاً.
+                / <span class="en" dir="ltr">After transfer, add the payment reference if available. Without choosing Visit or Tour, the payment section stays hidden.</span>
+              </div>
+            </div>
+
             <div id="occasionFields" style="display:none;">
               <div class="divider"></div>
 
@@ -98,8 +146,7 @@
 
                 <div class="field" id="occasionOtherWrap" style="display:none;">
                   <label for="occasionOther">اكتب نوع المناسبة / <span class="en" dir="ltr">Specify</span></label>
-                  <input id="occasionOther" name="occasionOther" type="text"
-                         placeholder="مثال: إطلاق / توديع... | e.g. Launch / Farewell" />
+                  <input id="occasionOther" name="occasionOther" type="text" placeholder="مثال: إطلاق / توديع... | e.g. Launch / Farewell" />
                 </div>
               </div>
 
@@ -133,8 +180,7 @@
 
                 <div class="field">
                   <label for="durationHours">عدد الساعات (اختياري) / <span class="en" dir="ltr">Duration (Optional)</span></label>
-                  <input id="durationHours" name="durationHours" type="number" min="1" max="24"
-                         placeholder="مثال: 4 | e.g. 4" />
+                  <input id="durationHours" name="durationHours" type="number" min="1" max="24" placeholder="مثال: 4 | e.g. 4" />
                 </div>
               </div>
 
@@ -150,20 +196,17 @@
 
                 <div class="field" id="bandDetailsWrap" style="display:none;">
                   <label for="bandDetails">تفاصيل الفرقة (اختياري) / <span class="en" dir="ltr">Band Details (Optional)</span></label>
-                  <input id="bandDetails" name="bandDetails" type="text"
-                         placeholder="مثال: عود / دي جي | e.g. Oud / DJ" />
+                  <input id="bandDetails" name="bandDetails" type="text" placeholder="مثال: عود / دي جي | e.g. Oud / DJ" />
                 </div>
               </div>
             </div>
 
             <div class="divider"></div>
 
-            <!-- Full Name + Birthdate -->
             <div class="grid two">
               <div class="field">
                 <label for="fullName">الاسم الكامل / <span class="en" dir="ltr">Full Name</span></label>
-                <input id="fullName" name="fullName" type="text"
-                       placeholder="مثال: طارق محمد | e.g. Ahmed Ali" required />
+                <input id="fullName" name="fullName" type="text" placeholder="مثال: طارق محمد | e.g. Ahmed Ali" required />
               </div>
 
               <div class="field">
@@ -172,27 +215,22 @@
               </div>
             </div>
 
-            <!-- Phone + Email -->
             <div class="grid two">
               <div class="field">
                 <label for="phone">رقم الهاتف / <span class="en" dir="ltr">Phone</span></label>
-                <input id="phone" name="phone" type="tel"
-                       placeholder="07xxxxxxxxx" required />
+                <input id="phone" name="phone" type="tel" placeholder="07xxxxxxxxx" required />
               </div>
 
               <div class="field">
                 <label for="email">الإيميل / <span class="en" dir="ltr">Email</span></label>
-                <input id="email" name="email" type="email"
-                       placeholder="name@example.com" required />
+                <input id="email" name="email" type="email" placeholder="name@example.com" required />
               </div>
             </div>
 
-            <!-- Notes + Children -->
             <div class="grid two">
               <div class="field">
                 <label for="notes">ملاحظات (اختياري) / <span class="en" dir="ltr">Notes (Optional)</span></label>
-                <input id="notes" name="notes" type="text"
-                       placeholder="مثال: VIP / وقت إضافي | e.g. VIP / Extra time" />
+                <input id="notes" name="notes" type="text" placeholder="مثال: VIP / وقت إضافي | e.g. VIP / Extra time" />
               </div>
 
               <div class="field">
@@ -205,16 +243,13 @@
               </div>
             </div>
 
-            <!-- Youngest Kid Age -->
             <div class="grid two" id="kidsAgeRow" style="display:none;">
               <div class="field" style="grid-column:1 / -1;">
-                <label for="youngestKidAge">عمر  الطفل (بالسنوات) / <span class="en" dir="ltr">Child Age</span></label>
-                <input id="youngestKidAge" name="youngestKidAge" type="number"
-                       min="0" max="17" step="1" placeholder="مثال: 4 | e.g. 4" />
+                <label for="youngestKidAge">عمر الطفل (بالسنوات) / <span class="en" dir="ltr">Child Age</span></label>
+                <input id="youngestKidAge" name="youngestKidAge" type="number" min="0" max="17" step="1" placeholder="مثال: 4 | e.g. 4" />
               </div>
             </div>
 
-            <!-- Group Fields -->
             <div id="groupFields" style="display:none;">
               <div class="divider"></div>
 
@@ -255,19 +290,18 @@
               <div class="grid two">
                 <div class="field" style="grid-column:1 / -1;">
                   <label for="interests">الاهتمامات / <span class="en" dir="ltr">Interests</span></label>
-                  <input id="interests" name="interests" type="text"
-                         placeholder="مثال: التحف، التصوير | e.g. Antiques, Photography" />
+                  <input id="interests" name="interests" type="text" placeholder="مثال: التحف، التصوير | e.g. Antiques, Photography" />
                 </div>
               </div>
             </div>
 
             <div class="actions">
-               <button type="button" class="btn secondary" id="previewBtn">
-                 عرض الملخص / <span class="en" dir="ltr">Preview</span>
+              <button type="button" class="btn secondary" id="previewBtn">
+                عرض الملخص / <span class="en" dir="ltr">Preview</span>
               </button>
 
-               <button type="button" class="btn secondary" id="printBtn">
-                 طباعة / PDF <span class="en" dir="ltr">Print</span>
+              <button type="button" class="btn secondary" id="printBtn">
+                طباعة / PDF <span class="en" dir="ltr">Print</span>
               </button>
 
               <button type="submit" class="btn primary" id="submitBtn">
@@ -276,11 +310,9 @@
               </button>
             </div>
 
-
             <div class="footnote">
               * سيتم إرسال الحجز إلى الإدارة عبر البريد الإلكتروني / <span class="en" dir="ltr">Booking will be emailed to management.</span>
             </div>
-
           </form>
         </section>
 
@@ -302,14 +334,12 @@
 
           <div class="toast" id="toast"></div>
         </aside>
-
       </main>
 
       <footer class="footer">
         <span>© بيت التحفيات / <span class="en" dir="ltr">House of Antiques</span></span>
         <span class="muted">Baghdad • Abu Nuwas</span>
       </footer>
-
     </div>
   </div>
 
