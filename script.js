@@ -1,6 +1,8 @@
 /**************************************************************
  * HOA Booking Form - script.js
- * Rebuilt with payment logic for Visit/Tour only.
+ * Clean rewrite:
+ * - Visit / Tour => per person pricing
+ * - Photography => per hour pricing
  **************************************************************/
 
 const WHATSAPP_NUMBER = "9647737079079";
@@ -11,10 +13,13 @@ const EMAILJS_TEMPLATE_ID = "template_ht88c8b";
 
 const ADMIN_RECEIVER_EMAIL = "houseofantique30@gmail.com";
 const MASTERCARD_NUMBER = "7146148577";
+
 const PAYMENT_PRICES = {
   "زيارة": 10,
   "جولة": 15,
 };
+
+const PHOTOGRAPHY_PRICE_PER_HOUR = 400;
 
 (function initEmailJS(){
   if (window.emailjs) {
@@ -26,17 +31,17 @@ const $ = (s) => document.querySelector(s);
 
 function toast(msg){
   const t = $("#toast");
-  if(!t){ 
-    alert(msg); 
-    return; 
+  if(!t){
+    alert(msg);
+    return;
   }
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 2600);
 }
 
-function pad2(n){ 
-  return String(n).padStart(2, "0"); 
+function pad2(n){
+  return String(n).padStart(2, "0");
 }
 
 function humanDate(iso){
@@ -85,27 +90,54 @@ function calcDurationHours(start, end){
   return diff.toFixed(1).replace(".0", "");
 }
 
-function show(el){ 
-  if(el) el.style.display = "block"; 
+function show(el){
+  if(el) el.style.display = "block";
 }
 
-function hide(el){ 
-  if(el) el.style.display = "none"; 
+function hide(el){
+  if(el) el.style.display = "none";
 }
 
-function isPaymentEvent(type){ 
-  return type === "زيارة" || type === "جولة"; 
+function isStandardPaymentEvent(type){
+  return type === "زيارة" || type === "جولة";
 }
 
-function getPaymentMeta(eventType, peopleCount){
+function isPhotographyEvent(type){
+  return type === "تصوير";
+}
+
+function isPaymentEvent(type){
+  return isStandardPaymentEvent(type) || isPhotographyEvent(type);
+}
+
+function getPaymentMeta(eventType, peopleCount, photographyHours){
+  if(isPhotographyEvent(eventType)){
+    const hours = Math.max(Number(photographyHours || 0), 0);
+    const total = hours * PHOTOGRAPHY_PRICE_PER_HOUR;
+
+    return {
+      enabled: true,
+      isPhotography: true,
+      perPerson: 0,
+      total,
+      hours,
+      perHour: PHOTOGRAPHY_PRICE_PER_HOUR,
+      label: `$${PHOTOGRAPHY_PRICE_PER_HOUR} / hour`,
+      totalLabel: total ? `$${total}` : "—",
+    };
+  }
+
   const count = Math.max(Number(peopleCount || 0), 0);
   const perPerson = PAYMENT_PRICES[eventType] || 0;
   const total = perPerson * count;
 
   return {
-    enabled: isPaymentEvent(eventType),
+    enabled: isStandardPaymentEvent(eventType),
+    isPhotography: false,
     perPerson,
     total,
+    hours: 0,
+    perHour: 0,
     label: perPerson ? `$${perPerson} / person` : "—",
     totalLabel: total ? `$${total}` : "—",
   };
@@ -168,6 +200,46 @@ function syncBandDetails(){
   } else {
     hide(wrap);
     if($("#bandDetails")) $("#bandDetails").value = "";
+  }
+}
+
+function syncPhotographyFields(){
+  const eventType = $("#eventType")?.value || "";
+  const wrap = $("#photographyFields");
+  const typeSelect = $("#photographyType");
+  const hoursInput = $("#photographyHours");
+
+  if(!wrap || !typeSelect || !hoursInput) return;
+
+  if(isPhotographyEvent(eventType)){
+    show(wrap);
+    typeSelect.required = true;
+    hoursInput.required = true;
+  } else {
+    hide(wrap);
+    typeSelect.required = false;
+    hoursInput.required = false;
+    typeSelect.value = "";
+    hoursInput.value = "";
+    if($("#photographyOther")) $("#photographyOther").value = "";
+    if($("#photographyTotalDisplay")) $("#photographyTotalDisplay").value = "—";
+    hide($("#photographyOtherWrap"));
+  }
+}
+
+function syncPhotographyOther(){
+  const v = $("#photographyType")?.value;
+  const wrap = $("#photographyOtherWrap");
+  const input = $("#photographyOther");
+  if(!wrap || !input) return;
+
+  if(v === "أخرى"){
+    show(wrap);
+    input.required = true;
+  } else {
+    hide(wrap);
+    input.required = false;
+    input.value = "";
   }
 }
 
@@ -262,6 +334,7 @@ function syncTimeHints(){
 function syncPaymentUI(){
   const eventType = $("#eventType")?.value || "";
   const peopleCount = $("#peopleCount")?.value || "0";
+  const photographyHours = $("#photographyHours")?.value || "0";
 
   const paymentSection = $("#paymentSection");
   const paymentMethod = $("#paymentMethod");
@@ -270,16 +343,50 @@ function syncPaymentUI(){
   const pricePerPerson = $("#pricePerPerson");
   const paymentTotal = $("#paymentTotal");
   const badge = $("#paymentTypeBadge");
+  const mastercardNumber = $("#mastercardNumber");
 
-  const meta = getPaymentMeta(eventType, peopleCount);
+  const photoRateRow = $("#photoRateRow");
+  const photoHoursRow = $("#photoHoursRow");
+  const photoTotalRow = $("#photoTotalRow");
+  const photoRate = $("#photoRate");
+  const photoHoursValue = $("#photoHoursValue");
+  const photoTotal = $("#photoTotal");
+  const photoDisplay = $("#photographyTotalDisplay");
+
+  const meta = getPaymentMeta(eventType, peopleCount, photographyHours);
 
   if(meta.enabled){
     show(paymentSection);
 
     if(paymentMethod) paymentMethod.required = true;
-    if(pricePerPerson) pricePerPerson.textContent = meta.label;
-    if(paymentTotal) paymentTotal.textContent = meta.totalLabel;
     if(badge) badge.textContent = eventType;
+    if(mastercardNumber) mastercardNumber.textContent = MASTERCARD_NUMBER;
+
+    if(meta.isPhotography){
+      if(pricePerPerson) pricePerPerson.textContent = "—";
+      if(paymentTotal) paymentTotal.textContent = meta.totalLabel;
+
+      show(photoRateRow);
+      show(photoHoursRow);
+      show(photoTotalRow);
+
+      if(photoRate) photoRate.textContent = `$${meta.perHour}`;
+      if(photoHoursValue) photoHoursValue.textContent = meta.hours ? String(meta.hours) : "—";
+      if(photoTotal) photoTotal.textContent = meta.totalLabel;
+      if(photoDisplay) photoDisplay.value = meta.totalLabel;
+    } else {
+      if(pricePerPerson) pricePerPerson.textContent = meta.label;
+      if(paymentTotal) paymentTotal.textContent = meta.totalLabel;
+
+      hide(photoRateRow);
+      hide(photoHoursRow);
+      hide(photoTotalRow);
+
+      if(photoRate) photoRate.textContent = "—";
+      if(photoHoursValue) photoHoursValue.textContent = "—";
+      if(photoTotal) photoTotal.textContent = "—";
+      if(photoDisplay) photoDisplay.value = "—";
+    }
   } else {
     hide(paymentSection);
 
@@ -293,19 +400,32 @@ function syncPaymentUI(){
     if(pricePerPerson) pricePerPerson.textContent = "—";
     if(paymentTotal) paymentTotal.textContent = "—";
     if(badge) badge.textContent = "—";
+
+    hide(photoRateRow);
+    hide(photoHoursRow);
+    hide(photoTotalRow);
+
+    if(photoRate) photoRate.textContent = "—";
+    if(photoHoursValue) photoHoursValue.textContent = "—";
+    if(photoTotal) photoTotal.textContent = "—";
+    if(photoDisplay) photoDisplay.value = "—";
   }
 }
 
 function getData(){
   const eventType = $("#eventType").value;
   const peopleCount = $("#peopleCount").value;
-  const paymentMeta = getPaymentMeta(eventType, peopleCount);
+  const photographyHours = $("#photographyHours")?.value || "";
+  const paymentMeta = getPaymentMeta(eventType, peopleCount, photographyHours);
 
   return {
     eventType,
     peopleCount,
     date: $("#date").value,
     time: $("#time").value,
+
+    photographyType: $("#photographyType")?.value || "",
+    photographyOther: $("#photographyOther")?.value?.trim() || "",
 
     occasionType: $("#occasionType")?.value || "",
     occasionOther: $("#occasionOther")?.value?.trim() || "",
@@ -338,6 +458,10 @@ function getData(){
     pricePerPerson: paymentMeta.perPerson,
     paymentTotal: paymentMeta.total,
     mastercardNumber: MASTERCARD_NUMBER,
+
+    photographyHours: paymentMeta.isPhotography ? paymentMeta.hours : 0,
+    photographyPricePerHour: paymentMeta.isPhotography ? paymentMeta.perHour : 0,
+    isPhotographyPayment: paymentMeta.isPhotography,
   };
 }
 
@@ -363,6 +487,7 @@ function dividerRow(){
 function renderSummary(data, bookingId){
   const isOccasion = data.eventType === "occasion";
   const isGroup = Number(data.peopleCount || 0) >= 4;
+  const isPhotography = data.eventType === "تصوير";
   const eventLabel = isOccasion ? "إقامة مناسبة (Private Occasion)" : data.eventType;
   const rows = [];
 
@@ -372,11 +497,28 @@ function renderSummary(data, bookingId){
   rows.push(kv("وقت البداية / Start", `${escapeHtml(data.time)} — ${escapeHtml(timeToArabicLabel(data.time))}`));
   rows.push(kv("عدد الأشخاص / Guests", escapeHtml(data.peopleCount)));
 
+  if(isPhotography){
+    const photoTypeLabel =
+      data.photographyType === "أخرى" && data.photographyOther
+        ? `${data.photographyType} — ${data.photographyOther}`
+        : (data.photographyType || "—");
+
+    rows.push(kv("نوع التصوير / Photography Type", escapeHtml(photoTypeLabel)));
+    rows.push(kv("عدد الساعات / Hours", escapeHtml(data.photographyHours || "—")));
+  }
+
   if(data.paymentEnabled){
     rows.push(dividerRow());
     rows.push(kv("الدفع / Payment", "مطلوب قبل تثبيت الحجز / Required before confirmation"));
-    rows.push(kv("سعر الشخص / Per Person", `$${escapeHtml(data.pricePerPerson)}`));
-    rows.push(kv("المبلغ الكلي / Total", `$${escapeHtml(data.paymentTotal)}`));
+
+    if(isPhotography){
+      rows.push(kv("سعر الساعة / Price Per Hour", `$${escapeHtml(data.photographyPricePerHour)}`));
+      rows.push(kv("إجمالي المبلغ / Final Total", `$${escapeHtml(data.paymentTotal)}`));
+    } else {
+      rows.push(kv("سعر الشخص / Per Person", `$${escapeHtml(data.pricePerPerson)}`));
+      rows.push(kv("المبلغ الكلي / Total", `$${escapeHtml(data.paymentTotal)}`));
+    }
+
     rows.push(kv("رقم بطاقة التحويل / Transfer Card", `<span dir="ltr">${escapeHtml(data.mastercardNumber)}</span>`));
     rows.push(kv("طريقة الدفع / Method", escapeHtml(data.paymentMethod || "—")));
     rows.push(kv("مرجع الدفع / Payment Ref", escapeHtml(data.paymentRef || "—")));
@@ -432,12 +574,18 @@ function renderSummary(data, bookingId){
 function buildEmailHtml(data, bookingId){
   const isOccasion = data.eventType === "occasion";
   const isGroup = Number(data.peopleCount || 0) >= 4;
+  const isPhotography = data.eventType === "تصوير";
   const eventLabel = isOccasion ? "Private Occasion / إقامة مناسبة" : data.eventType;
   const computed = calcDurationHours(data.time, data.endTime);
   const durationFinal = isOccasion ? (data.durationHours || computed || "—") : "—";
   const occ = (data.occasionType === "أخرى" && data.occasionOther)
     ? `${data.occasionType} — ${data.occasionOther}`
     : (data.occasionType || "—");
+  const photoTypeLabel =
+    data.photographyType === "أخرى" && data.photographyOther
+      ? `${data.photographyType} — ${data.photographyOther}`
+      : (data.photographyType || "—");
+
   const createdAt = new Date().toLocaleString("ar-IQ");
 
   const tr = (k, v) => `
@@ -463,11 +611,24 @@ function buildEmailHtml(data, bookingId){
   rows += tr("التاريخ / Date", escapeHtml(humanDate(data.date)));
   rows += tr("وقت البداية / Start", `${escapeHtml(data.time)} — ${escapeHtml(timeToArabicLabel(data.time))}`);
 
+  if(isPhotography){
+    rows += tr("نوع التصوير / Photography Type", escapeHtml(photoTypeLabel));
+    rows += tr("عدد الساعات / Hours", escapeHtml(data.photographyHours || "—"));
+  }
+
   if(data.paymentEnabled){
     rows += sep();
-    rows += tr("الدفع مطلوب؟", "نعم — زيارة أو جولة");
-    rows += tr("سعر الشخص", `$${escapeHtml(data.pricePerPerson)}`);
-    rows += tr("المبلغ الكلي", `$${escapeHtml(data.paymentTotal)}`);
+
+    if(isPhotography){
+      rows += tr("الدفع مطلوب؟", "نعم — تصوير");
+      rows += tr("سعر الساعة", `$${escapeHtml(data.photographyPricePerHour)}`);
+      rows += tr("إجمالي المبلغ", `$${escapeHtml(data.paymentTotal)}`);
+    } else {
+      rows += tr("الدفع مطلوب؟", "نعم — زيارة أو جولة");
+      rows += tr("سعر الشخص", `$${escapeHtml(data.pricePerPerson)}`);
+      rows += tr("المبلغ الكلي", `$${escapeHtml(data.paymentTotal)}`);
+    }
+
     rows += tr("رقم بطاقة التحويل", `<span dir="ltr">${escapeHtml(data.mastercardNumber)}</span>`);
     rows += tr("طريقة الدفع", escapeHtml(data.paymentMethod || "—"));
     rows += tr("مرجع الدفع", escapeHtml(data.paymentRef || "—"));
@@ -526,12 +687,17 @@ function buildEmailHtml(data, bookingId){
 
 function buildWhatsAppText(data, bookingId){
   const isOccasion = data.eventType === "occasion";
+  const isPhotography = data.eventType === "تصوير";
   const eventLabel = isOccasion ? "إقامة مناسبة" : data.eventType;
   const durationAuto = calcDurationHours(data.time, data.endTime);
   const durationFinal = isOccasion ? (data.durationHours || durationAuto || "—") : "—";
   const occ = (data.occasionType === "أخرى" && data.occasionOther)
     ? `${data.occasionType} - ${data.occasionOther}`
     : (data.occasionType || "—");
+  const photoTypeLabel =
+    data.photographyType === "أخرى" && data.photographyOther
+      ? `${data.photographyType} - ${data.photographyOther}`
+      : (data.photographyType || "—");
 
   return [
     "📌 حجز جديد — بيت التحفيات",
@@ -541,8 +707,11 @@ function buildWhatsAppText(data, bookingId){
     `عدد الأشخاص: ${data.peopleCount}`,
     `التاريخ: ${humanDate(data.date)}`,
     `وقت البداية: ${data.time} (${timeToArabicLabel(data.time)})`,
+    isPhotography ? `نوع التصوير: ${photoTypeLabel}` : null,
+    isPhotography ? `عدد الساعات: ${data.photographyHours}` : null,
+    isPhotography ? `سعر الساعة: $${data.photographyPricePerHour}` : null,
     data.paymentEnabled ? `الدفع المطلوب: $${data.paymentTotal}` : null,
-    data.paymentEnabled ? `سعر الشخص: $${data.pricePerPerson}` : null,
+    !isPhotography && data.paymentEnabled ? `سعر الشخص: $${data.pricePerPerson}` : null,
     data.paymentEnabled ? `رقم بطاقة التحويل: ${data.mastercardNumber}` : null,
     data.paymentEnabled ? `مرجع الدفع: ${data.paymentRef || "—"}` : null,
     isOccasion ? `وقت النهاية: ${data.endTime || "—"} ${data.endTime ? `(${timeToArabicLabel(data.endTime)})` : ""}` : null,
@@ -578,6 +747,7 @@ $("#peopleCount")?.addEventListener("input", syncPeopleRules);
 
 $("#eventType")?.addEventListener("change", () => {
   syncOccasionRules();
+  syncPhotographyFields();
   syncPaymentUI();
 });
 
@@ -587,6 +757,8 @@ $("#isForeign")?.addEventListener("change", validateExtraLogic);
 $("#hasKids")?.addEventListener("change", syncKidsRules);
 $("#time")?.addEventListener("input", syncTimeHints);
 $("#endTime")?.addEventListener("input", syncTimeHints);
+$("#photographyType")?.addEventListener("change", syncPhotographyOther);
+$("#photographyHours")?.addEventListener("input", syncPaymentUI);
 
 $("#previewBtn")?.addEventListener("click", () => {
   syncPeopleRules();
@@ -596,6 +768,8 @@ $("#previewBtn")?.addEventListener("click", () => {
   validateExtraLogic();
   syncKidsRules();
   syncTimeHints();
+  syncPhotographyFields();
+  syncPhotographyOther();
   syncPaymentUI();
 
   const form = $("#bookingForm");
@@ -623,6 +797,8 @@ $("#bookingForm")?.addEventListener("submit", async (e) => {
   validateExtraLogic();
   syncKidsRules();
   syncTimeHints();
+  syncPhotographyFields();
+  syncPhotographyOther();
   syncPaymentUI();
 
   const form = $("#bookingForm");
@@ -663,6 +839,13 @@ $("#bookingForm")?.addEventListener("submit", async (e) => {
     end_time_ar: data.endTime ? timeToArabicLabel(data.endTime) : "-",
     duration_hours: (data.durationHours || calcDurationHours(data.time, data.endTime) || "-"),
 
+    photography_type:
+      data.photographyType === "أخرى" && data.photographyOther
+        ? `${data.photographyType} - ${data.photographyOther}`
+        : (data.photographyType || "-"),
+    photography_hours: data.isPhotographyPayment ? String(data.photographyHours) : "-",
+    photography_price_per_hour: data.isPhotographyPayment ? `$${data.photographyPricePerHour}` : "-",
+
     full_name: data.fullName,
     birthdate: humanDate(data.birthdate),
     phone: data.phone,
@@ -673,7 +856,7 @@ $("#bookingForm")?.addEventListener("submit", async (e) => {
 
     payment_required: data.paymentEnabled ? "نعم (Yes)" : "لا (No)",
     payment_method: data.paymentEnabled ? (data.paymentMethod || "-") : "-",
-    payment_per_person: data.paymentEnabled ? `$${data.pricePerPerson}` : "-",
+    payment_per_person: !data.isPhotographyPayment && data.paymentEnabled ? `$${data.pricePerPerson}` : "-",
     payment_total: data.paymentEnabled ? `$${data.paymentTotal}` : "-",
     payment_card_number: data.paymentEnabled ? data.mastercardNumber : "-",
     payment_ref: data.paymentEnabled ? (data.paymentRef || "-") : "-",
@@ -765,10 +948,16 @@ function openPrintPage(){
     has_kids: data.hasKids === "yes" ? "نعم" : "لا",
     youngest_kid_age: data.hasKids === "yes" ? (data.youngestKidAge || "—") : "—",
     payment_total: data.paymentEnabled ? `$${data.paymentTotal}` : "—",
-    payment_per_person: data.paymentEnabled ? `$${data.pricePerPerson}` : "—",
+    payment_per_person: !data.isPhotographyPayment && data.paymentEnabled ? `$${data.pricePerPerson}` : "—",
     payment_card_number: data.paymentEnabled ? data.mastercardNumber : "—",
     payment_method: data.paymentEnabled ? (data.paymentMethod || "—") : "—",
     payment_ref: data.paymentEnabled ? (data.paymentRef || "—") : "—",
+    photography_type:
+      data.photographyType === "أخرى" && data.photographyOther
+        ? `${data.photographyType} - ${data.photographyOther}`
+        : (data.photographyType || "—"),
+    photography_hours: data.isPhotographyPayment ? String(data.photographyHours) : "—",
+    photography_price_per_hour: data.isPhotographyPayment ? `$${data.photographyPricePerHour}` : "—",
   });
 
   window.open(`print.html?${qs.toString()}`, "_blank");
@@ -784,5 +973,7 @@ document.getElementById("printBtn")?.addEventListener("click", openPrintPage);
   validateExtraLogic();
   syncKidsRules();
   syncTimeHints();
+  syncPhotographyFields();
+  syncPhotographyOther();
   syncPaymentUI();
 })();

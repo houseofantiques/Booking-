@@ -36,6 +36,7 @@
           </div>
 
           <form id="bookingForm" class="form" autocomplete="on" novalidate>
+
             <div class="grid two">
               <div class="field">
                 <label for="eventType">نوع الفعالية / <span class="en" dir="ltr">Event Type</span></label>
@@ -43,8 +44,8 @@
                   <option value="" selected disabled>اختر (Select)</option>
                   <option value="زيارة">زيارة (Visit)</option>
                   <option value="جولة">جولة (Tour)</option>
-                  <option value="مزاد">مزاد (Auction)</option>
                   <option value="تصوير">تصوير (Photography)</option>
+                  <option value="مزاد">مزاد (Auction)</option>
                   <option value="حفل">حفل (Party)</option>
                   <option value="ورشة / ندوة">ورشة / ندوة (Workshop / Seminar)</option>
                   <option value="occasion">إقامة مناسبة (Private Occasion)</option>
@@ -70,6 +71,59 @@
               </div>
             </div>
 
+            <div id="photographyFields" style="display:none;">
+              <div class="divider"></div>
+
+              <div class="grid two">
+                <div class="field">
+                  <label for="photographyType">نوع التصوير / <span class="en" dir="ltr">Photography Type</span></label>
+                  <select id="photographyType" name="photographyType">
+                    <option value="" selected disabled>اختر (Select)</option>
+                    <option value="شركة">شركة (Company)</option>
+                    <option value="عرسان">عرسان (Wedding Couple)</option>
+                    <option value="شخصي">شخصي (Personal)</option>
+                    <option value="أخرى">أخرى (Other)</option>
+                  </select>
+                </div>
+
+                <div class="field" id="photographyOtherWrap" style="display:none;">
+                  <label for="photographyOther">اكتب النوع / <span class="en" dir="ltr">Specify</span></label>
+                  <input
+                    id="photographyOther"
+                    name="photographyOther"
+                    type="text"
+                    placeholder="مثال: تصوير منتجات | e.g. Product Shoot"
+                  />
+                </div>
+              </div>
+
+              <div class="grid two">
+                <div class="field">
+                  <label for="photographyHours">عدد ساعات التصوير / <span class="en" dir="ltr">Photography Hours</span></label>
+                  <input
+                    id="photographyHours"
+                    name="photographyHours"
+                    type="number"
+                    min="1"
+                    max="24"
+                    step="1"
+                    placeholder="مثال: 2 | e.g. 2"
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="photographyTotalDisplay">السعر النهائي / <span class="en" dir="ltr">Final Total</span></label>
+                  <input
+                    id="photographyTotalDisplay"
+                    name="photographyTotalDisplay"
+                    type="text"
+                    value="—"
+                    readonly
+                  />
+                </div>
+              </div>
+            </div>
+
             <div id="paymentSection" class="payment-panel" style="display:none;">
               <div class="divider"></div>
 
@@ -77,8 +131,8 @@
                 <div>
                   <h3>الدفع المسبق / <span class="en" dir="ltr">Advance Payment</span></h3>
                   <p>
-                    يظهر هذا القسم فقط للزيارة والجولة. أما المناسبات وباقي الخيارات فيتم الاتفاق عليها عبر التواصل المباشر.
-                    / <span class="en" dir="ltr">This appears only for Visit and Tour. Other options are arranged manually first.</span>
+                    يظهر هذا القسم للزيارة والجولة والتصوير. أما المناسبات وباقي الخيارات فيتم الاتفاق عليها عبر التواصل المباشر.
+                    / <span class="en" dir="ltr">This appears for Visit, Tour, and Photography. Other options are arranged manually first.</span>
                   </p>
                 </div>
                 <div class="payment-badge" id="paymentTypeBadge">—</div>
@@ -89,10 +143,27 @@
                   <span>سعر الشخص / <span class="en" dir="ltr">Price Per Person</span></span>
                   <strong id="pricePerPerson">—</strong>
                 </div>
+
+                <div class="pay-line" id="photoRateRow" style="display:none;">
+                  <span>سعر الساعة / <span class="en" dir="ltr">Price Per Hour</span></span>
+                  <strong id="photoRate">—</strong>
+                </div>
+
+                <div class="pay-line" id="photoHoursRow" style="display:none;">
+                  <span>عدد ساعات التصوير / <span class="en" dir="ltr">Photography Hours</span></span>
+                  <strong id="photoHoursValue">—</strong>
+                </div>
+
+                <div class="pay-line total" id="photoTotalRow" style="display:none;">
+                  <span>إجمالي مبلغ التصوير / <span class="en" dir="ltr">Photography Total</span></span>
+                  <strong id="photoTotal">—</strong>
+                </div>
+
                 <div class="pay-line total">
                   <span>المبلغ المطلوب / <span class="en" dir="ltr">Required Amount</span></span>
                   <strong id="paymentTotal">—</strong>
                 </div>
+
                 <div class="pay-line card-no">
                   <span>رقم بطاقة الماستر كارد للتحويل / <span class="en" dir="ltr">Mastercard Number for Transfer</span></span>
                   <strong dir="ltr" id="mastercardNumber">7146148577</strong>
@@ -120,8 +191,8 @@
               </div>
 
               <div class="payment-note">
-                بعد التحويل، أدخل مرجع العملية إن وجد. بدون اختيار زيارة أو جولة، لن يظهر قسم الدفع أصلاً.
-                / <span class="en" dir="ltr">After transfer, add the payment reference if available. Without choosing Visit or Tour, the payment section stays hidden.</span>
+                بعد التحويل، أدخل مرجع العملية إن وجد. بدون اختيار زيارة أو جولة أو تصوير، لن يظهر قسم الدفع أصلاً.
+                / <span class="en" dir="ltr">After transfer, add the payment reference if available. Without choosing Visit, Tour, or Photography, the payment section stays hidden.</span>
               </div>
             </div>
 

@@ -359,3 +359,15 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   padding: 14px 16px;
   box-sizing: border-box;
 }
+
+.field input[readonly]{
+  opacity: 1;
+  cursor: default;
+  background: rgba(65, 0, 0, 0.92);
+}
+.field input[readonly]{
+  background: rgba(40, 0, 0, 0.72);
+  color: #fff;
+  font-weight: 800;
+  cursor: not-allowed;
+}
